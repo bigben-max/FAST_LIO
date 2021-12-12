@@ -39,10 +39,19 @@ namespace odometry {
 #define MAXN (720000)
 #define PUBFRAME_PERIOD (20)
 
+PointCloudXYZI::Ptr feats_down_body;
+PointCloudXYZI::Ptr feats_down_world;
+
+PointCloudXYZI::Ptr laserCloudOri;
+PointCloudXYZI::Ptr corr_normvect;
+int effct_feat_num = 0;
+std::vector<PointVector> Nearest_Points;
+KD_TREE ikdtree;
+
 class laserMapping {
  public:
-  laserMapping();
-  ~laserMapping();
+  laserMapping() = default;
+  ~laserMapping() {}
 
   void init();
   void initRos(ros::NodeHandle &nh);
@@ -172,18 +181,16 @@ class laserMapping {
          filter_size_map_min = 0, fov_deg = 0;
   double cube_len = 0, HALF_FOV_COS = 0, FOV_DEG = 0, total_distance = 0,
          lidar_end_time = 0, first_lidar_time = 0.0;
-  static int effct_feat_num;
+
   int time_log_counter = 0, scan_count = 0, publish_count = 0;
   int iterCount = 0, feats_down_size = 0, NUM_MAX_ITERATIONS = 0,
       laserCloudValidNum = 0, pcd_save_interval = -1, pcd_index = 0;
   bool lidar_pushed, flg_first_scan = true, flg_EKF_inited;
   bool scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
 
-  static bool flg_exit;
-
   std::vector<std::vector<int>> pointSearchInd_surf;
   std::vector<BoxPointType> cub_needrm;
-  static std::vector<PointVector> Nearest_Points;
+
   std::vector<double> extrinT;
   std::vector<double> extrinR;
   std::deque<double> time_buffer;
@@ -200,11 +207,7 @@ class laserMapping {
 
   PointCloudXYZI::Ptr featsFromMap;
   PointCloudXYZI::Ptr feats_undistort;
-  static PointCloudXYZI::Ptr feats_down_body;
-  static PointCloudXYZI::Ptr feats_down_world;
 
-  static PointCloudXYZI::Ptr laserCloudOri;
-  static PointCloudXYZI::Ptr corr_normvect;
   PointCloudXYZI::Ptr _featsArray;
 
   pcl::VoxelGrid<PointType> downSizeFilterSurf;
@@ -212,8 +215,6 @@ class laserMapping {
 
   PointCloudXYZI::Ptr pcl_wait_pub;
   PointCloudXYZI::Ptr pcl_wait_save;
-
-  static KD_TREE ikdtree;
 
   V3F XAxisPoint_body{LIDAR_SP_LEN, 0.0, 0.0};
   V3F XAxisPoint_world{LIDAR_SP_LEN, 0.0, 0.0};

@@ -88,6 +88,6 @@ add_library(fastlio_mapping src/laserMapping.cpp include/ikd-Tree/ikd_Tree.cpp s
 target_link_libraries(fastlio_mapping ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${PYTHON_LIBRARIES})
 target_include_directories(fastlio_mapping PRIVATE ${PYTHON_INCLUDE_DIRS})
 
-add_library(fastlio_node node/fast_lio_node.cpp)
+add_executable(fastlio_node node/fast_lio_node.cpp)
 target_link_libraries(fastlio_node fastlio_mapping ${catkin_LIBRARIES})
 

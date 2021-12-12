@@ -562,8 +562,8 @@ void laserMapping::init() {
   scan_body_pub_en = true;
   NUM_MAX_ITERATIONS = 4;
   map_file_path = "./";
-  lid_topic = "/livox/lidar";
-  imu_topic = "/livox/imu";
+  lid_topic = "/points_raw";
+  imu_topic = "/imu_correct";
   time_sync_en = false;
   filter_size_corner_min = 0.5;
   filter_size_surf_min = 0.5;
