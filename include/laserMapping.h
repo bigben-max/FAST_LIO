@@ -39,15 +39,6 @@ namespace odometry {
 #define MAXN (720000)
 #define PUBFRAME_PERIOD (20)
 
-PointCloudXYZI::Ptr feats_down_body;
-PointCloudXYZI::Ptr feats_down_world;
-
-PointCloudXYZI::Ptr laserCloudOri;
-PointCloudXYZI::Ptr corr_normvect;
-int effct_feat_num = 0;
-std::vector<PointVector> Nearest_Points;
-KD_TREE ikdtree;
-
 class laserMapping {
  public:
   laserMapping() = default;
@@ -79,7 +70,26 @@ class laserMapping {
   static void h_share_model(state_ikfom &s,
                             esekfom::dyn_share_datastruct<double> &ekfom_data);
 
-  void dump_lio_state_to_log(FILE *fp);
+  void dump_lio_state_to_log(FILE *fp) {
+    V3D rot_ang(Log(state_point.rot.toRotationMatrix()));
+    fprintf(fp, "%lf ", Measures.lidar_beg_time - first_lidar_time);
+    fprintf(fp, "%lf %lf %lf ", rot_ang(0), rot_ang(1), rot_ang(2));  // Angle
+    fprintf(fp, "%lf %lf %lf ", state_point.pos(0), state_point.pos(1),
+            state_point.pos(2));                 // Pos
+    fprintf(fp, "%lf %lf %lf ", 0.0, 0.0, 0.0);  // omega
+    fprintf(fp, "%lf %lf %lf ", state_point.vel(0), state_point.vel(1),
+            state_point.vel(2));                 // Vel
+    fprintf(fp, "%lf %lf %lf ", 0.0, 0.0, 0.0);  // Acc
+    fprintf(fp, "%lf %lf %lf ", state_point.bg(0), state_point.bg(1),
+            state_point.bg(2));  // Bias_g
+    fprintf(fp, "%lf %lf %lf ", state_point.ba(0), state_point.ba(1),
+            state_point.ba(2));  // Bias_a
+    fprintf(fp, "%lf %lf %lf ", state_point.grav[0], state_point.grav[1],
+            state_point.grav[2]);  // Bias_a
+    fprintf(fp, "\r\n");
+    fflush(fp);
+  }
+
   void pointBodyToWorld_ikfom(PointType const *const pi, PointType *const po,
                               state_ikfom &s) {
     V3D p_body(pi->x, pi->y, pi->z);
@@ -136,7 +146,7 @@ class laserMapping {
   }
   void points_cache_collect() {
     PointVector points_history;
-    ikdtree.acquire_removed_points(points_history);
+    ikdtree->acquire_removed_points(points_history);
     for (int i = 0; i < points_history.size(); i++)
       _featsArray->push_back(points_history[i]);
   }
@@ -151,6 +161,15 @@ class laserMapping {
     out.pose.orientation.z = geoQuat.z;
     out.pose.orientation.w = geoQuat.w;
   }
+
+  static std::unique_ptr<ikdtree::KD_TREE> ikdtree;
+  static PointCloudXYZI::Ptr feats_down_body;
+  static PointCloudXYZI::Ptr feats_down_world;
+
+  static PointCloudXYZI::Ptr laserCloudOri;
+  static PointCloudXYZI::Ptr corr_normvect;
+  static int effct_feat_num;
+  static std::vector<PointVector> Nearest_Points;
 
  private:
   /*** Time Log Variables ***/
@@ -170,7 +189,7 @@ class laserMapping {
   const float MOV_THRESHOLD = 1.5f;
 
   std::mutex mtx_buffer;
-  condition_variable sig_buffer;
+  std::condition_variable sig_buffer;
 
   std::string root_dir = ROOT_DIR;
   std::string map_file_path, lid_topic, imu_topic;
@@ -189,7 +208,7 @@ class laserMapping {
   bool scan_pub_en = false, dense_pub_en = false, scan_body_pub_en = false;
 
   std::vector<std::vector<int>> pointSearchInd_surf;
-  std::vector<BoxPointType> cub_needrm;
+  std::vector<ikdtree::BoxPointType> cub_needrm;
 
   std::vector<double> extrinT;
   std::vector<double> extrinR;
@@ -197,7 +216,7 @@ class laserMapping {
   std::deque<PointCloudXYZI::Ptr> lidar_buffer;
   std::deque<ImuMeasurement> imu_buffer;
 
-  BoxPointType LocalMap_Points;
+  ikdtree::BoxPointType LocalMap_Points;
   bool Localmap_Initialized = false;
   double timediff_lidar_wrt_imu = 0.0;
   bool timediff_set_flg = false;

@@ -36,6 +36,15 @@
 #include "laserMapping.h"
 
 namespace odometry {
+
+std::unique_ptr<ikdtree::KD_TREE> laserMapping::ikdtree = nullptr;
+PointCloudXYZI::Ptr laserMapping::feats_down_body = nullptr;
+PointCloudXYZI::Ptr laserMapping::feats_down_world = nullptr;
+PointCloudXYZI::Ptr laserMapping::laserCloudOri = nullptr;
+PointCloudXYZI::Ptr laserMapping::corr_normvect = nullptr;
+int laserMapping::effct_feat_num = 0;
+std::vector<PointVector> laserMapping::Nearest_Points;
+
 void laserMapping::lasermap_fov_segment() {
   cub_needrm.clear();
   kdtree_delete_counter = 0;
@@ -60,10 +69,11 @@ void laserMapping::lasermap_fov_segment() {
       need_move = true;
   }
   if (!need_move) return;
-  BoxPointType New_LocalMap_Points, tmp_boxpoints;
+  ikdtree::BoxPointType New_LocalMap_Points, tmp_boxpoints;
   New_LocalMap_Points = LocalMap_Points;
-  float mov_dist = max((cube_len - 2.0 * MOV_THRESHOLD * DET_RANGE) * 0.5 * 0.9,
-                       double(DET_RANGE * (MOV_THRESHOLD - 1)));
+  float mov_dist =
+      std::max((cube_len - 2.0 * MOV_THRESHOLD * DET_RANGE) * 0.5 * 0.9,
+               double(DET_RANGE * (MOV_THRESHOLD - 1)));
   for (int i = 0; i < 3; i++) {
     tmp_boxpoints = LocalMap_Points;
     if (dist_to_map_edge[i][0] <= MOV_THRESHOLD * DET_RANGE) {
@@ -83,7 +93,7 @@ void laserMapping::lasermap_fov_segment() {
   points_cache_collect();
   double delete_begin = omp_get_wtime();
   if (cub_needrm.size() > 0)
-    kdtree_delete_counter = ikdtree.Delete_Point_Boxes(cub_needrm);
+    kdtree_delete_counter = ikdtree->Delete_Point_Boxes(cub_needrm);
   kdtree_delete_time = omp_get_wtime() - delete_begin;
 }
 
@@ -110,7 +120,7 @@ void laserMapping::standard_pcl_cbk(
 void laserMapping::load_pcl() {
   scan_count++;
   double preprocess_start_time = omp_get_wtime();
-  double lidar_sensortime = 0;//Seconds
+  double lidar_sensortime = 0;  // Seconds
   PointCloudXYZI::Ptr ptr(new PointCloudXYZI());
   // p_pre->process(msg, ptr);
   lidar_buffer.push_back(ptr);
@@ -158,7 +168,7 @@ void laserMapping::load_pcl() {
 
 void laserMapping::imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) {
   publish_count++;
-  // cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
+  // std::cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<std::endl;
   sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
 
   if (abs(timediff_lidar_wrt_imu) > 0.1 && time_sync_en) {
@@ -185,7 +195,7 @@ void laserMapping::imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) {
 void laserMapping::load_imu() {
   publish_count++;
 
-  double timestamp = 0; //seconds
+  double timestamp = 0;  // seconds
 
   last_timestamp_imu = timestamp;
   imu_buffer.push_back(ImuMeasurement());
@@ -255,7 +265,7 @@ void laserMapping::map_incremental() {
     if (!Nearest_Points[i].empty() && flg_EKF_inited) {
       const PointVector &points_near = Nearest_Points[i];
       bool need_add = true;
-      BoxPointType Box_of_Point;
+      ikdtree::BoxPointType Box_of_Point;
       PointType downsample_result, mid_point;
       mid_point.x = floor(feats_down_world->points[i].x / filter_size_map_min) *
                         filter_size_map_min +
@@ -287,8 +297,8 @@ void laserMapping::map_incremental() {
   }
 
   double st_time = omp_get_wtime();
-  add_point_size = ikdtree.Add_Points(PointToAdd, true);
-  ikdtree.Add_Points(PointNoNeedDownsample, false);
+  add_point_size = ikdtree->Add_Points(PointToAdd, true);
+  ikdtree->Add_Points(PointNoNeedDownsample, false);
   add_point_size = PointToAdd.size() + PointNoNeedDownsample.size();
   kdtree_incremental_time = omp_get_wtime() - st_time;
 }
@@ -332,10 +342,11 @@ void laserMapping::publish_frame_world(
     if (pcl_wait_save->size() > 0 && pcd_save_interval > 0 &&
         scan_wait_num >= pcd_save_interval) {
       pcd_index++;
-      string all_points_dir(string(string(ROOT_DIR) + "PCD/scans_") +
-                            to_string(pcd_index) + string(".pcd"));
+      std::string all_points_dir(
+          std::string(std::string(ROOT_DIR) + "PCD/scans_") +
+          std::to_string(pcd_index) + std::string(".pcd"));
       pcl::PCDWriter pcd_writer;
-      cout << "current scan saved to /PCD/" << all_points_dir << endl;
+      std::cout << "current scan saved to /PCD/" << all_points_dir << std::endl;
       pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
       pcl_wait_save->clear();
       scan_wait_num = 0;
@@ -469,8 +480,8 @@ void laserMapping::h_share_model(
 
     if (ekfom_data.converge) {
       /** Find the closest surfaces in the map **/
-      ikdtree.Nearest_Search(point_world, NUM_MATCH_POINTS, points_near,
-                             pointSearchSqDis);
+      ikdtree->Nearest_Search(point_world, NUM_MATCH_POINTS, points_near,
+                              pointSearchSqDis);
       point_selected_surf[i] = points_near.size() < NUM_MATCH_POINTS ? false
                                : pointSearchSqDis[NUM_MATCH_POINTS - 1] > 5
                                    ? false
@@ -556,6 +567,7 @@ void laserMapping::h_share_model(
 }
 
 void laserMapping::init() {
+  std::cout << "init " << std::endl;
   path_en = true;
   scan_pub_en = true;
   dense_pub_en = true;
@@ -587,7 +599,7 @@ void laserMapping::init() {
   extrinT = {0.0, 0.0, 0.0};
   extrinR = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
-  cout << "p_pre->lidar_type " << p_pre->lidar_type << endl;
+  std::cout << "p_pre->lidar_type " << p_pre->lidar_type << std::endl;
 
   FOV_DEG = (fov_deg + 10.0) > 179.9 ? 179.9 : (fov_deg + 10.0);
   HALF_FOV_COS = cos((FOV_DEG)*0.5 * PI_M / 180.0);
@@ -619,6 +631,8 @@ void laserMapping::init() {
 
   p_pre.reset(new Preprocess());
   p_imu.reset(new ImuProcess());
+
+  ikdtree.reset(new ikdtree::KD_TREE());
 
   signal(SIGINT, SigHandle);
 }
@@ -654,23 +668,23 @@ void laserMapping::work() {
   path.header.frame_id = "camera_init";
 
   double epsi[23] = {0.001};
-  fill(epsi, epsi + 23, 0.001);
+  std::fill(epsi, epsi + 23, 0.001);
   kf.init_dyn_share(get_f, df_dx, df_dw, h_share_model, NUM_MAX_ITERATIONS,
                     epsi);
 
   /*** debug record ***/
   FILE *fp;
-  string pos_log_dir = root_dir + "/Log/pos_log.txt";
+  std::string pos_log_dir = root_dir + "/Log/pos_log.txt";
   fp = fopen(pos_log_dir.c_str(), "w");
 
-  ofstream fout_pre, fout_out, fout_dbg;
-  fout_pre.open(DEBUG_FILE_DIR("mat_pre.txt"), ios::out);
-  fout_out.open(DEBUG_FILE_DIR("mat_out.txt"), ios::out);
-  fout_dbg.open(DEBUG_FILE_DIR("dbg.txt"), ios::out);
+  std::ofstream fout_pre, fout_out, fout_dbg;
+  fout_pre.open(DEBUG_FILE_DIR("mat_pre.txt"), std::ios::out);
+  fout_out.open(DEBUG_FILE_DIR("mat_out.txt"), std::ios::out);
+  fout_dbg.open(DEBUG_FILE_DIR("dbg.txt"), std::ios::out);
   if (fout_pre && fout_out)
-    cout << "~~~~" << ROOT_DIR << " file opened" << endl;
+    std::cout << "~~~~" << ROOT_DIR << " file opened" << std::endl;
   else
-    cout << "~~~~" << ROOT_DIR << " doesn't exist" << endl;
+    std::cout << "~~~~" << ROOT_DIR << " doesn't exist" << std::endl;
 
   ros::Rate rate(5000);
 
@@ -714,24 +728,24 @@ void laserMapping::work() {
       t1 = omp_get_wtime();
       feats_down_size = feats_down_body->points.size();
       /*** initialize the map kdtree ***/
-      if (ikdtree.Root_Node == nullptr) {
+      if (ikdtree->Root_Node == nullptr) {
         if (feats_down_size > 5) {
-          ikdtree.set_downsample_param(filter_size_map_min);
+          ikdtree->set_downsample_param(filter_size_map_min);
           feats_down_world->resize(feats_down_size);
           for (int i = 0; i < feats_down_size; i++) {
             pointBodyToWorld(&(feats_down_body->points[i]),
                              &(feats_down_world->points[i]));
           }
-          ikdtree.Build(feats_down_world->points);
+          ikdtree->Build(feats_down_world->points);
         }
         continue;
       }
-      int featsFromMapNum = ikdtree.validnum();
-      kdtree_size_st = ikdtree.size();
+      int featsFromMapNum = ikdtree->validnum();
+      kdtree_size_st = ikdtree->size();
 
-      // cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<"
+      // std::cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<"
       // downsamp "<<feats_down_size<<" Map num: "<<featsFromMapNum<<"effect
-      // num:"<<effct_feat_num<<endl;
+      // num:"<<effct_feat_num<<std::endl;
 
       /*** ICP and iterated Kalman filter update ***/
       if (feats_down_size < 5) {
@@ -742,20 +756,22 @@ void laserMapping::work() {
       feats_down_world->resize(feats_down_size);
 
       V3D ext_euler = SO3ToEuler(state_point.offset_R_L_I);
-      fout_pre << setw(20) << Measures.lidar_beg_time - first_lidar_time << " "
-               << euler_cur.transpose() << " " << state_point.pos.transpose()
-               << " " << ext_euler.transpose() << " "
-               << state_point.offset_T_L_I.transpose() << " "
+      fout_pre << std::setw(20) << Measures.lidar_beg_time - first_lidar_time
+               << " " << euler_cur.transpose() << " "
+               << state_point.pos.transpose() << " " << ext_euler.transpose()
+               << " " << state_point.offset_T_L_I.transpose() << " "
                << state_point.vel.transpose() << " "
                << state_point.bg.transpose() << " "
-               << state_point.ba.transpose() << " " << state_point.grav << endl;
+               << state_point.ba.transpose() << " " << state_point.grav
+               << std::endl;
 
       if (0)  // If you need to see map point, change to "if(1)"
       {
-        PointVector().swap(ikdtree.PCL_Storage);
-        ikdtree.flatten(ikdtree.Root_Node, ikdtree.PCL_Storage, NOT_RECORD);
+        PointVector().swap(ikdtree->PCL_Storage);
+        ikdtree->flatten(ikdtree->Root_Node, ikdtree->PCL_Storage,
+                         ikdtree::NOT_RECORD);
         featsFromMap->clear();
-        featsFromMap->points = ikdtree.PCL_Storage;
+        featsFromMap->points = ikdtree->PCL_Storage;
       }
 
       pointSearchInd_surf.resize(feats_down_size);
@@ -798,7 +814,7 @@ void laserMapping::work() {
       /*** Debug variables ***/
       if (runtime_pos_log) {
         frame_num++;
-        kdtree_size_end = ikdtree.size();
+        kdtree_size_end = ikdtree->size();
         aver_time_consu = aver_time_consu * (frame_num - 1) / frame_num +
                           (t5 - t0) / frame_num;
         aver_time_icp = aver_time_icp * (frame_num - 1) / frame_num +
@@ -831,14 +847,14 @@ void laserMapping::work() {
             t1 - t0, aver_time_match, aver_time_solve, t3 - t1, t5 - t3,
             aver_time_consu, aver_time_icp, aver_time_const_H_time);
         ext_euler = SO3ToEuler(state_point.offset_R_L_I);
-        fout_out << setw(20) << Measures.lidar_beg_time - first_lidar_time
+        fout_out << std::setw(20) << Measures.lidar_beg_time - first_lidar_time
                  << " " << euler_cur.transpose() << " "
                  << state_point.pos.transpose() << " " << ext_euler.transpose()
                  << " " << state_point.offset_T_L_I.transpose() << " "
                  << state_point.vel.transpose() << " "
                  << state_point.bg.transpose() << " "
                  << state_point.ba.transpose() << " " << state_point.grav << " "
-                 << feats_undistort->points.size() << endl;
+                 << feats_undistort->points.size() << std::endl;
         dump_lio_state_to_log(fp);
       }
     }
@@ -850,10 +866,11 @@ void laserMapping::work() {
   /* 1. make sure you have enough memories
   /* 2. pcd save will largely influence the real-time performences **/
   if (pcl_wait_save->size() > 0 && pcd_save_en) {
-    string file_name = string("scans.pcd");
-    string all_points_dir(string(string(ROOT_DIR) + "PCD/") + file_name);
+    std::string file_name = std::string("scans.pcd");
+    std::string all_points_dir(std::string(std::string(ROOT_DIR) + "PCD/") +
+                               file_name);
     pcl::PCDWriter pcd_writer;
-    cout << "current scan saved to /PCD/" << file_name << endl;
+    std::cout << "current scan saved to /PCD/" << file_name << std::endl;
     pcd_writer.writeBinary(all_points_dir, *pcl_wait_save);
   }
 
@@ -864,7 +881,7 @@ void laserMapping::work() {
     std::vector<double> t, s_vec, s_vec2, s_vec3, s_vec4, s_vec5, s_vec6,
         s_vec7;
     FILE *fp2;
-    string log_dir = root_dir + "/Log/fast_lio_time_log.csv";
+    std::string log_dir = root_dir + "/Log/fast_lio_time_log.csv";
     fp2 = fopen(log_dir.c_str(), "w");
     fprintf(fp2,
             "time_stamp, total time, scan point size, incremental time, search "

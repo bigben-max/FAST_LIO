@@ -1,3 +1,4 @@
+#pragma once
 #include <common_lib.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/Vector3.h>
