@@ -8,10 +8,11 @@ int main(int argc, char **argv) {
  
   
   //------------------------------------------------------------------------------------------------------
-  odometry::laserMapping laser_mapping;
-  // laser_mapping.init();
-  // laser_mapping.initRos(nh);
-  // laser_mapping.work();
+  std::unique_ptr<odometry::laserMapping> laser_mapping;
+  laser_mapping.reset(new odometry::laserMapping());
+  laser_mapping->init();
+  laser_mapping->initRos(nh);
+  laser_mapping->work();
 
   return 0;
 }

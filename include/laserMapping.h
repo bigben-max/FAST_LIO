@@ -39,11 +39,11 @@ namespace odometry {
 #define MAXN (720000)
 #define PUBFRAME_PERIOD (20)
 
-void SigHandle(int sig) {
-  ROS_WARN("catch sig %d", sig);
-  // sig_buffer.notify_all();
-  ros::shutdown();
-}
+// void SigHandle(int sig) {
+//   ROS_WARN("catch sig %d", sig);
+//   // sig_buffer.notify_all();
+//   ros::shutdown();
+// }
 
 class laserMapping {
  public:
@@ -67,9 +67,9 @@ class laserMapping {
   void publish_map(const ros::Publisher &pubLaserCloudMap);
   void publish_path(const ros::Publisher pubPath);
   void publish_odometry(const ros::Publisher &pubOdomAftMapped);
-  // static void h_share_model(state_ikfom &s,
-  //                           esekfom::dyn_share_datastruct<double>
-  //                           &ekfom_data);
+  static void h_share_model(state_ikfom &s,
+                            esekfom::dyn_share_datastruct<double>
+                            &ekfom_data);
 
   void dump_lio_state_to_log(FILE *fp) {
     V3D rot_ang(Log(state_point.rot.toRotationMatrix()));
@@ -163,14 +163,14 @@ class laserMapping {
     out.pose.orientation.w = geoQuat.w;
   }
 
-  std::unique_ptr<ikdtree::KD_TREE> ikdtree;
-  PointCloudXYZI::Ptr feats_down_body;
-  PointCloudXYZI::Ptr feats_down_world;
+  static std::unique_ptr<ikdtree::KD_TREE> ikdtree;
+  static PointCloudXYZI::Ptr feats_down_body;
+  static PointCloudXYZI::Ptr feats_down_world;
 
-  PointCloudXYZI::Ptr laserCloudOri;
-   PointCloudXYZI::Ptr corr_normvect;
-   int effct_feat_num;
-   std::vector<PointVector> Nearest_Points;
+  static PointCloudXYZI::Ptr laserCloudOri;
+  static PointCloudXYZI::Ptr corr_normvect;
+  static int effct_feat_num;
+  static std::vector<PointVector> Nearest_Points;
 
  private:
   /*** Time Log Variables ***/
@@ -236,8 +236,8 @@ class laserMapping {
   PointCloudXYZI::Ptr pcl_wait_pub;
   PointCloudXYZI::Ptr pcl_wait_save;
 
-  V3F XAxisPoint_body{LIDAR_SP_LEN, 0.0, 0.0};
-  V3F XAxisPoint_world{LIDAR_SP_LEN, 0.0, 0.0};
+  V3F XAxisPoint_body;
+  V3F XAxisPoint_world;
   V3D euler_cur;
   V3D position_last{Zero3d};
   V3D Lidar_T_wrt_IMU{Zero3d};
@@ -245,7 +245,7 @@ class laserMapping {
 
   /*** EKF inputs and output ***/
   MeasureGroup Measures;
-  esekfom::esekf<state_ikfom, 12, input_ikfom> kf;
+  std::shared_ptr<esekfom::esekf<state_ikfom, 12, input_ikfom>> kf;
   state_ikfom state_point;
   vect3 pos_lid;
 
