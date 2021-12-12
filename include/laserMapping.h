@@ -39,20 +39,20 @@ namespace odometry {
 #define MAXN (720000)
 #define PUBFRAME_PERIOD (20)
 
+void SigHandle(int sig) {
+  ROS_WARN("catch sig %d", sig);
+  // sig_buffer.notify_all();
+  ros::shutdown();
+}
+
 class laserMapping {
  public:
-  laserMapping() = default;
+  laserMapping() {}
   ~laserMapping() {}
 
   void init();
   void initRos(ros::NodeHandle &nh);
   void work();
-
-  static void SigHandle(int sig) {
-    ROS_WARN("catch sig %d", sig);
-    // sig_buffer.notify_all();
-    ros::shutdown();
-  }
 
   void lasermap_fov_segment();
   void load_imu();
@@ -67,8 +67,9 @@ class laserMapping {
   void publish_map(const ros::Publisher &pubLaserCloudMap);
   void publish_path(const ros::Publisher pubPath);
   void publish_odometry(const ros::Publisher &pubOdomAftMapped);
-  static void h_share_model(state_ikfom &s,
-                            esekfom::dyn_share_datastruct<double> &ekfom_data);
+  // static void h_share_model(state_ikfom &s,
+  //                           esekfom::dyn_share_datastruct<double>
+  //                           &ekfom_data);
 
   void dump_lio_state_to_log(FILE *fp) {
     V3D rot_ang(Log(state_point.rot.toRotationMatrix()));
@@ -162,14 +163,14 @@ class laserMapping {
     out.pose.orientation.w = geoQuat.w;
   }
 
-  static std::unique_ptr<ikdtree::KD_TREE> ikdtree;
-  static PointCloudXYZI::Ptr feats_down_body;
-  static PointCloudXYZI::Ptr feats_down_world;
+  std::unique_ptr<ikdtree::KD_TREE> ikdtree;
+  PointCloudXYZI::Ptr feats_down_body;
+  PointCloudXYZI::Ptr feats_down_world;
 
-  static PointCloudXYZI::Ptr laserCloudOri;
-  static PointCloudXYZI::Ptr corr_normvect;
-  static int effct_feat_num;
-  static std::vector<PointVector> Nearest_Points;
+  PointCloudXYZI::Ptr laserCloudOri;
+   PointCloudXYZI::Ptr corr_normvect;
+   int effct_feat_num;
+   std::vector<PointVector> Nearest_Points;
 
  private:
   /*** Time Log Variables ***/
