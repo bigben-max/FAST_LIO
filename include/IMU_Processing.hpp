@@ -177,7 +177,8 @@ void ImuProcess::IMU_init(
               (cur_gyr - mean_gyr).cwiseProduct(cur_gyr - mean_gyr) *
                   (N - 1.0) / (N * N);
 
-    // cout<<"acc norm: "<<cur_acc.norm()<<" "<<mean_acc.norm()<<endl;
+    // std::cout << "acc norm: " << cur_acc.norm() << " " << mean_acc.norm()
+    //           << std::endl;
 
     N++;
   }
@@ -190,7 +191,6 @@ void ImuProcess::IMU_init(
   init_state.offset_T_L_I = Lidar_T_wrt_IMU;
   init_state.offset_R_L_I = Lidar_R_wrt_IMU;
   kf_state.change_x(init_state);
-
   esekfom::esekf<state_ikfom, 12, input_ikfom>::cov init_P = kf_state.get_P();
   init_P.setIdentity();
   init_P(6, 6) = init_P(7, 7) = init_P(8, 8) = 0.00001;
@@ -243,8 +243,7 @@ void ImuProcess::UndistortPcl(
     angvel_avr << 0.5 * (head.angular_velocity.x + tail.angular_velocity.x),
         0.5 * (head.angular_velocity.y + tail.angular_velocity.y),
         0.5 * (head.angular_velocity.z + tail.angular_velocity.z);
-    acc_avr << 0.5 *
-                   (head.linear_acceleration.x + tail.linear_acceleration.x),
+    acc_avr << 0.5 * (head.linear_acceleration.x + tail.linear_acceleration.x),
         0.5 * (head.linear_acceleration.y + tail.linear_acceleration.y),
         0.5 * (head.linear_acceleration.z + tail.linear_acceleration.z);
 
@@ -366,7 +365,6 @@ void ImuProcess::Process(const MeasureGroup &meas,
 
     return;
   }
-
   UndistortPcl(meas, kf_state, *cur_pcl_un_);
 
   t2 = omp_get_wtime();

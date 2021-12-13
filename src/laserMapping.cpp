@@ -205,7 +205,6 @@ bool laserMapping::sync_packages(MeasureGroup &meas) {
   if (lidar_buffer.empty() || imu_buffer.empty()) {
     return false;
   }
-
   /*** push a lidar scan ***/
   if (!lidar_pushed) {
     meas.lidar = lidar_buffer.front();
@@ -400,7 +399,7 @@ void laserMapping::publish_odometry(const ros::Publisher &pubOdomAftMapped) {
       lidar_end_time);  // ros::Time().fromSec(lidar_end_time);
   set_posestamp(odomAftMapped.pose);
   pubOdomAftMapped_.publish(odomAftMapped);
-  auto P = kf->get_P();
+  auto P = kf.get_P();
   for (int i = 0; i < 6; i++) {
     int k = i < 3 ? i + 3 : i - 3;
     odomAftMapped.pose.covariance[i * 6 + 0] = P(k, 3);
@@ -456,7 +455,6 @@ void laserMapping::h_share_model(
   memset(res_last, -1000.0f, sizeof(res_last));
 
   bool extrinsic_est_en = true;
-
 /** closest surface search and residual computation **/
 #ifdef MP_EN
   omp_set_num_threads(MP_PROC_NUM);
@@ -572,31 +570,23 @@ void laserMapping::init() {
   scan_pub_en = true;
   dense_pub_en = true;
   scan_body_pub_en = true;
-  std::cout << "init2 " << std::endl;
   NUM_MAX_ITERATIONS = 4;
-  std::cout << "init3 " << std::endl;
   map_file_path = "./";
   lid_topic = "/points_raw";
   imu_topic = "/imu_correct";
-  std::cout << "init3 " << std::endl;
   time_sync_en = false;
   filter_size_corner_min = 0.5;
   filter_size_surf_min = 0.5;
   filter_size_map_min = 0.5;
-  std::cout << "init3 " << std::endl;
   cube_len = 200;
   DET_RANGE = 300.0f;
   fov_deg = 180;
   gyr_cov = 0.1;
   acc_cov = 0.1;
-  std::cout << "init3 " << std::endl;
   b_gyr_cov = 0.0001;
   b_acc_cov = 0.0001;
-  std::cout << "init2 " << std::endl;
   p_pre.reset(new Preprocess());
-  std::cout << "init3 " << std::endl;
   p_imu.reset(new ImuProcess());
-  std::cout << "p_pre->lidar_type " << p_pre->lidar_type << std::endl;
   p_pre->blind = 0.01;
   p_pre->lidar_type = VELO16;
   p_pre->N_SCANS = 16;
@@ -641,7 +631,7 @@ void laserMapping::init() {
   pcl_wait_pub.reset(new PointCloudXYZI(500000, 1));
   pcl_wait_save.reset(new PointCloudXYZI());
 
-  kf.reset(new esekfom::esekf<state_ikfom, 12, input_ikfom>);
+  // kf.reset(new esekfom::esekf<state_ikfom, 12, input_ikfom>());
   ikdtree.reset(new ikdtree::KD_TREE());
 
   // signal(SIGINT, SigHandle);
@@ -679,7 +669,7 @@ void laserMapping::work() {
 
   double epsi[23] = {0.001};
   std::fill(epsi, epsi + 23, 0.001);
-  kf->init_dyn_share(get_f, df_dx, df_dw, h_share_model, NUM_MAX_ITERATIONS,
+  kf.init_dyn_share(get_f, df_dx, df_dw, h_share_model, NUM_MAX_ITERATIONS,
                      epsi);
 
   /*** debug record ***/
@@ -717,8 +707,8 @@ void laserMapping::work() {
       svd_time = 0;
       t0 = omp_get_wtime();
 
-      p_imu->Process(Measures, *kf, feats_undistort);
-      state_point = kf->get_x();
+      p_imu->Process(Measures, kf, feats_undistort);
+      state_point = kf.get_x();
       pos_lid = state_point.pos + state_point.rot * state_point.offset_T_L_I;
 
       if (feats_undistort->empty() || (feats_undistort == NULL)) {
@@ -753,9 +743,10 @@ void laserMapping::work() {
       int featsFromMapNum = ikdtree->validnum();
       kdtree_size_st = ikdtree->size();
 
-      // std::cout<<"[ mapping ]: In num: "<<feats_undistort->points.size()<<"
-      // downsamp "<<feats_down_size<<" Map num: "<<featsFromMapNum<<"effect
-      // num:"<<effct_feat_num<<std::endl;
+      std::cout << "[ mapping ]: In num: " << feats_undistort->points.size()
+                << "downsamp " << feats_down_size
+                << " Map num: " << featsFromMapNum
+                << "effectnum:" << effct_feat_num << std::endl;
 
       /*** ICP and iterated Kalman filter update ***/
       if (feats_down_size < 5) {
@@ -794,8 +785,8 @@ void laserMapping::work() {
       /*** iterated state estimation ***/
       double t_update_start = omp_get_wtime();
       double solve_H_time = 0;
-      kf->update_iterated_dyn_share_modified(LASER_POINT_COV, solve_H_time);
-      state_point = kf->get_x();
+      kf.update_iterated_dyn_share_modified(LASER_POINT_COV, solve_H_time);
+      state_point = kf.get_x();
       euler_cur = SO3ToEuler(state_point.rot);
       pos_lid = state_point.pos + state_point.rot * state_point.offset_T_L_I;
       geoQuat.x = state_point.rot.coeffs()[0];

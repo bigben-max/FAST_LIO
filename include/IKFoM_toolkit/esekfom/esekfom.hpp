@@ -1074,8 +1074,8 @@ class esekf {
   }
   // iterated error state EKF update for measurement as an Eigen matrix whose
   // dimension is changing. calculate measurement (z), estimate measurement (h),
-  // partial differention matrices (h_x, h_v) and the noise covariance (R) at the
-  // same time, by only one function.
+  // partial differention matrices (h_x, h_v) and the noise covariance (R) at
+  // the same time, by only one function.
   void update_iterated_dyn_share() {
     int t = 0;
     dyn_share_datastruct<scalar_type> dyn_share;
@@ -1855,8 +1855,8 @@ class esekf {
       if (n > dof_Measurement) {
         //#ifdef USE_sparse
         // Matrix<scalar_type, Eigen::Dynamic, Eigen::Dynamic> K_temp = h_x * P_
-        // * h_x.transpose(); spMt R_temp = h_v * R_ * h_v.transpose(); K_temp +=
-        // R_temp;
+        // * h_x.transpose(); spMt R_temp = h_v * R_ * h_v.transpose(); K_temp
+        // += R_temp;
         Eigen::Matrix<scalar_type, Eigen::Dynamic, Eigen::Dynamic> h_x_cur =
             Eigen::Matrix<scalar_type, Eigen::Dynamic, Eigen::Dynamic>::Zero(
                 dof_Measurement, n);

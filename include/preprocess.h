@@ -89,6 +89,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point,
 namespace odometry {
 class Preprocess {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Preprocess();
   ~Preprocess();
 
@@ -100,7 +101,7 @@ class Preprocess {
 
   // sensor_msgs::PointCloud2::ConstPtr pointcloud;
   PointCloudXYZI pl_full, pl_corn, pl_surf;
-  PointCloudXYZI pl_buff[128];  // maximum 128 line lidar
+  PointCloudXYZI pl_buff[128];       // maximum 128 line lidar
   std::vector<orgtype> typess[128];  // maximum 128 line lidar
   int lidar_type, point_filter_num, N_SCANS, SCAN_RATE;
   double blind;
@@ -115,10 +116,10 @@ class Preprocess {
   void pub_func(PointCloudXYZI &pl, const ros::Time &ct);
   int plane_judge(const PointCloudXYZI &pl, std::vector<orgtype> &types, uint i,
                   uint &i_nex, Eigen::Vector3d &curr_direct);
-  bool small_plane(const PointCloudXYZI &pl, std::vector<orgtype> &types, uint i_cur,
-                   uint &i_nex, Eigen::Vector3d &curr_direct);
-  bool edge_jump_judge(const PointCloudXYZI &pl, std::vector<orgtype> &types, uint i,
-                       Surround nor_dir);
+  bool small_plane(const PointCloudXYZI &pl, std::vector<orgtype> &types,
+                   uint i_cur, uint &i_nex, Eigen::Vector3d &curr_direct);
+  bool edge_jump_judge(const PointCloudXYZI &pl, std::vector<orgtype> &types,
+                       uint i, Surround nor_dir);
 
   int group_size;
   double disA, disB, inf_bound;

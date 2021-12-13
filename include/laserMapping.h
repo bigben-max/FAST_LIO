@@ -47,6 +47,7 @@ namespace odometry {
 
 class laserMapping {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   laserMapping() {}
   ~laserMapping() {}
 
@@ -68,8 +69,7 @@ class laserMapping {
   void publish_path(const ros::Publisher pubPath);
   void publish_odometry(const ros::Publisher &pubOdomAftMapped);
   static void h_share_model(state_ikfom &s,
-                            esekfom::dyn_share_datastruct<double>
-                            &ekfom_data);
+                            esekfom::dyn_share_datastruct<double> &ekfom_data);
 
   void dump_lio_state_to_log(FILE *fp) {
     V3D rot_ang(Log(state_point.rot.toRotationMatrix()));
@@ -245,7 +245,7 @@ class laserMapping {
 
   /*** EKF inputs and output ***/
   MeasureGroup Measures;
-  std::shared_ptr<esekfom::esekf<state_ikfom, 12, input_ikfom>> kf;
+  esekfom::esekf<state_ikfom, 12, input_ikfom> kf;
   state_ikfom state_point;
   vect3 pos_lid;
 
